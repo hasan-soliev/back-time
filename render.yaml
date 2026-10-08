@@ -1,0 +1,21 @@
+# Render Blueprint: Dashboard → New → Blueprint → выбрать этот репозиторий.
+services:
+  - type: web
+    name: back-time
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # Значения этих переменных Render спросит при создании сервиса.
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Postgres (например, бесплатный Neon). Без него данные живут до перезапуска сервиса.
+      - key: DATABASE_URL
+        sync: false

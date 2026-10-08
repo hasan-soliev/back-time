@@ -11,26 +11,61 @@ const DB_FILE = path.join(DATA_DIR, 'schedules.json');
  */
 let cache;
 
-async function load() {
-  if (cache) {
-    return cache;
+// С DATABASE_URL всё состояние лежит одной JSON-строкой в Postgres (на хостингах вроде Render
+// диск временный и стирается при перезапуске). Без него — файл data/schedules.json.
+const DATABASE_URL = process.env.DATABASE_URL;
+let pool;
+
+async function getPool() {
+  if (!pool) {
+    const { default: pg } = await import('pg');
+    pool = new pg.Pool({
+      connectionString: DATABASE_URL,
+      ssl: /localhost|127\.0\.0\.1/.test(DATABASE_URL) ? false : { rejectUnauthorized: false },
+    });
+    await pool.query('CREATE TABLE IF NOT EXISTS app_state (key text PRIMARY KEY, value jsonb NOT NULL)');
+  }
+  return pool;
+}
+
+async function readState() {
+  if (DATABASE_URL) {
+    const { rows } = await (await getPool()).query("SELECT value FROM app_state WHERE key = 'schedules'");
+    return rows[0]?.value ?? null;
   }
   try {
-    cache = JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
+    return JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
   } catch (e) {
     if (e.code !== 'ENOENT') {
       throw e;
     }
-    cache = { schedules: [] };
+    return null;
   }
+}
+
+async function load() {
+  cache ??= (await readState()) ?? { schedules: [] };
   return cache;
 }
 
 async function persist() {
+  if (DATABASE_URL) {
+    await (await getPool()).query(
+      "INSERT INTO app_state (key, value) VALUES ('schedules', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+      [JSON.stringify(cache)],
+    );
+    return;
+  }
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = `${DB_FILE}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(cache, null, 2));
   await fs.rename(tmp, DB_FILE);
+}
+
+export const storageKind = () => (DATABASE_URL ? 'postgres' : `file ${DB_FILE}`);
+
+export async function isEmpty() {
+  return (await load()).schedules.length === 0;
 }
 
 export async function listSchedules() {

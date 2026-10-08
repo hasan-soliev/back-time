@@ -2,7 +2,18 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import { extractSchedule, normalizeSchedule } from './extract.js';
-import { daysInRange, deleteSchedule, listSchedules, saveSchedule, scheduleForDate } from './store.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  daysInRange,
+  deleteSchedule,
+  isEmpty,
+  listSchedules,
+  saveSchedule,
+  scheduleForDate,
+  storageKind,
+} from './store.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
@@ -115,4 +126,18 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Хатои сервер' });
 });
 
-app.listen(PORT, () => console.log(`Namaz server: http://localhost:${PORT}`));
+// Пустое хранилище (первый запуск, новая база) заполняем месяцами из seed/.
+async function seedIfEmpty() {
+  if (!(await isEmpty())) {
+    return;
+  }
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'seed');
+  const files = (await fs.readdir(dir).catch(() => [])).filter((f) => f.endsWith('.json'));
+  for (const f of files) {
+    const saved = await saveSchedule(normalizeSchedule(JSON.parse(await fs.readFile(path.join(dir, f), 'utf8'))));
+    console.log(`seed: ${saved.periodFrom} — ${saved.periodTo}`);
+  }
+}
+
+await seedIfEmpty();
+app.listen(PORT, () => console.log(`Server: http://localhost:${PORT} (storage: ${storageKind()})`));

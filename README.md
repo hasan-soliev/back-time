@@ -20,10 +20,19 @@ npm start            # http://localhost:3000
 | `ADMIN_TOKEN` | — | пароль вкладки «Идора» в приложении (обязательно) |
 | `ANTHROPIC_API_KEY` | — | ключ Claude API, нужен только для распознавания скриншотов |
 | `PORT` | 3000 | порт сервера |
-| `DATA_DIR` | ./data | где хранится `schedules.json` |
+| `DATABASE_URL` | — | строка подключения Postgres; если задана, данные хранятся в базе, а не в файле |
+| `DATA_DIR` | ./data | где хранится `schedules.json` (без `DATABASE_URL`) |
 | `CLAUDE_MODEL` | claude-opus-5 | модель для распознавания |
 
 `npm run dev` — то же, что `npm start`, но перезапускается при изменении кода.
+
+## Деплой на Render
+
+1. Render → **New → Blueprint** → выбрать репозиторий `back-time` (настройки берутся из `render.yaml`).
+2. Указать `ADMIN_TOKEN`, `ANTHROPIC_API_KEY` и `DATABASE_URL`.
+3. Для `DATABASE_URL` подойдёт бесплатный Postgres на [neon.tech](https://neon.tech): на бесплатном Render диск
+   временный, и без базы загруженные расписания пропадут после перезапуска.
+4. При пустой базе сервер сам загрузит месяцы из `seed/`.
 
 ## API
 
