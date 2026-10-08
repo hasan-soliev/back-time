@@ -10,7 +10,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 22
+        value: 24
       # Значения этих переменных Render спросит при создании сервиса.
       - key: ADMIN_TOKEN
         sync: false
